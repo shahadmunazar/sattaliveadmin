@@ -131,6 +131,22 @@ const sitemap: MenuItem[] = [
     active: true,
 
   },
+  {
+    id: 'payment_qr',
+    subheader: 'Payment QR Code',
+    path: '/payment-qr',
+    icon: 'mingcute:qrcode-2-line',
+    active: true,
+
+  },
+  {
+    id: 'app_settings',
+    subheader: 'App Updates',
+    path: '/app-settings',
+    icon: 'mingcute:settings-2-line',
+    active: true,
+
+  },
   
 
 ];
