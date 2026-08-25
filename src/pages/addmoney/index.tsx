@@ -39,6 +39,21 @@ interface Transaction {
   user_mobile: string;
 }
 
+interface MoneyRequest {
+  id: number;
+  user_id: number;
+  transaction_type: string;
+  amount: string;
+  description: string;
+  image: string | null;
+  transaction_date: string;
+  available_balance: string;
+  created_at: string;
+  updated_at: string;
+  user: User;
+  confirm_payment: string;
+}
+
 const AddMoney: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [amount, setAmount] = useState<number | null>(null);
@@ -50,7 +65,13 @@ const AddMoney: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  
+  // New State for View/Process Modal
+  const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState<MoneyRequest | null>(null);
+
   const [totalPages, setTotalPages] = useState<number>(1);
+  const [pendingRequests, setPendingRequests] = useState<MoneyRequest[]>([]);
 
   const itemsPerPage = 10;
 
@@ -103,10 +124,57 @@ const AddMoney: React.FC = () => {
       setAmount(null);
       setCustomAmount('');
       setSelectedUser(null);
-      fetchTransactions(currentPage); // Refresh transactions
+      fetchTransactions(currentPage);
     } catch (err) {
       console.error('Failed to add money to user', err);
       setError('Failed to add money to user. Please try again.');
+    }
+  };
+
+  const fetchPendingRequests = async () => {
+    try {
+      const response = await axios.get('https://liveapi.sattalives.com/api/admin/all-money-added-request', {
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+        },
+      });
+      setPendingRequests(response.data.data);
+    } catch (err) {
+      console.error('Failed to fetch pending requests', err);
+    }
+  };
+
+  const handleApproveRequest = async (request: MoneyRequest) => {
+    try {
+      await axios.put(`https://liveapi.sattalives.com/api/admin/payment-confirmation/${request.id}`, {
+        confirm_payment: 'received_successfully'
+      }, {
+        headers: { Authorization: `Bearer ${getToken()}`, 'Content-Type': 'application/json' },
+      });
+      fetchPendingRequests();
+      fetchTransactions(currentPage);
+      setIsRequestModalOpen(false);
+      setError(null);
+    } catch (err) {
+      console.error('Failed to approve request', err);
+      setError('Failed to approve money request. Please try again.');
+    }
+  };
+
+  const handleRejectRequest = async (request: MoneyRequest) => {
+    try {
+      await axios.put(`https://liveapi.sattalives.com/api/admin/payment-confirmation/${request.id}`, {
+        confirm_payment: 'not_confirm'
+      }, {
+        headers: { Authorization: `Bearer ${getToken()}`, 'Content-Type': 'application/json' },
+      });
+      fetchPendingRequests();
+      fetchTransactions(currentPage);
+      setIsRequestModalOpen(false);
+      setError(null);
+    } catch (err) {
+      console.error('Failed to reject request', err);
+      setError('Failed to reject money request. Please try again.');
     }
   };
 
@@ -124,7 +192,7 @@ const AddMoney: React.FC = () => {
       );
       setDeleteId(null);
       setIsDialogOpen(false);
-      fetchTransactions(currentPage); // Refresh transactions after deletion
+      fetchTransactions(currentPage);
     } catch (error) {
       console.error('Failed to delete transaction', error);
       setError('Failed to delete transaction. Please try again.');
@@ -147,6 +215,13 @@ const AddMoney: React.FC = () => {
 
   useEffect(() => {
     fetchTransactions(currentPage);
+    fetchPendingRequests();
+
+    const intervalId = setInterval(() => {
+      fetchPendingRequests();
+    }, 30000);
+
+    return () => clearInterval(intervalId);
   }, [currentPage]);
 
   return (
@@ -192,7 +267,7 @@ const AddMoney: React.FC = () => {
                 variant={amount === value ? 'contained' : 'outlined'}
                 onClick={() => {
                   setAmount(value);
-                  setCustomAmount(''); // Reset custom amount
+                  setCustomAmount('');
                 }}
               >
                 {value}
@@ -207,7 +282,7 @@ const AddMoney: React.FC = () => {
             value={customAmount}
             onChange={(e) => {
               setCustomAmount(e.target.value);
-              setAmount(null); // Reset predefined amount
+              setAmount(null);
             }}
             placeholder="Enter custom amount"
             fullWidth
@@ -225,6 +300,59 @@ const AddMoney: React.FC = () => {
       )}
 
       {error && <Typography color="error">{error}</Typography>}
+
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="h5" gutterBottom>
+          Pending Money Requests
+        </Typography>
+        <TableContainer component={Paper}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>User Name</TableCell>
+                <TableCell>User Mobile</TableCell>
+                <TableCell>Requested Amount</TableCell>
+                <TableCell>Date</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell>Action</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {pendingRequests.filter(req => req.confirm_payment === 'not_confirm' || req.confirm_payment === 'pending' || req.confirm_payment === 'not_approved' || req.confirm_payment === 'not_accepted').length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} align="center">
+                    No pending requests found.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                pendingRequests
+                  .filter(req => req.confirm_payment === 'not_confirm' || req.confirm_payment === 'pending' || req.confirm_payment === 'not_approved' || req.confirm_payment === 'not_accepted')
+                  .map((request) => (
+                    <TableRow key={request.id}>
+                      <TableCell>{request.user?.name}</TableCell>
+                      <TableCell>{request.user?.mobile}</TableCell>
+                      <TableCell>{request.amount}</TableCell>
+                      <TableCell>{new Date(request.created_at || request.transaction_date).toLocaleString()}</TableCell>
+                      <TableCell>{request.confirm_payment}</TableCell>
+                      <TableCell>
+                        <Button
+                          variant="contained"
+                          color="primary"
+                          onClick={() => {
+                            setSelectedRequest(request);
+                            setIsRequestModalOpen(true);
+                          }}
+                        >
+                          View & Process
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Box>
 
       <Box>
         <Typography variant="h5" gutterBottom>
@@ -275,6 +403,7 @@ const AddMoney: React.FC = () => {
         />
       </Box>
 
+      {/* Delete Confirmation Dialog */}
       <Dialog open={isDialogOpen} onClose={handleDialogClose}>
         <DialogTitle>Confirm Deletion</DialogTitle>
         <DialogContent>
@@ -288,6 +417,54 @@ const AddMoney: React.FC = () => {
           </Button>
           <Button onClick={handleDelete} color="error">
             Confirm
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* View/Process Request Modal */}
+      <Dialog open={isRequestModalOpen} onClose={() => setIsRequestModalOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Process Payment Request</DialogTitle>
+        <DialogContent>
+          {selectedRequest && (
+            <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Typography variant="body1"><strong>User:</strong> {selectedRequest.user?.name} ({selectedRequest.user?.mobile})</Typography>
+              <Typography variant="body1"><strong>Requested Amount:</strong> ₹{selectedRequest.amount}</Typography>
+              <Typography variant="body1"><strong>Date:</strong> {new Date(selectedRequest.created_at || selectedRequest.transaction_date).toLocaleString()}</Typography>
+              
+              {selectedRequest.image && (
+                <Box sx={{ mt: 2, textAlign: 'center' }}>
+                  <Typography variant="body2" gutterBottom><strong>Payment Receipt:</strong></Typography>
+                  <img 
+                    src={`https://liveapi.sattalives.com/public/uploads/${selectedRequest.image}`} 
+                    alt="Receipt" 
+                    style={{ maxWidth: '100%', maxHeight: '400px', objectFit: 'contain', border: '1px solid #ccc' }} 
+                  />
+                </Box>
+              )}
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 3 }}>
+          <Button onClick={() => setIsRequestModalOpen(false)} color="inherit" variant="outlined">
+            Cancel
+          </Button>
+          <Button 
+            onClick={() => {
+              if (selectedRequest) handleRejectRequest(selectedRequest);
+            }} 
+            color="error" 
+            variant="contained"
+          >
+            Reject Request
+          </Button>
+          <Button 
+            onClick={() => {
+              if (selectedRequest) handleApproveRequest(selectedRequest);
+            }} 
+            color="success" 
+            variant="contained"
+          >
+            Approve & Add Money
           </Button>
         </DialogActions>
       </Dialog>
