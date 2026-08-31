@@ -17,6 +17,7 @@ const MainLayout = ({ children }: PropsWithChildren) => {
         p={{ xs: 2, sm: 3, lg: 5 }}
         spacing={{ xs: 2.5, sm: 3, lg: 3.75 }}
         width={{ xs: 1, lg: `calc(100% - 300px)` }}
+        minWidth={0}
         flexGrow={1}
       >
         <Topbar isClosing={isClosing} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />

@@ -89,8 +89,8 @@ const palette = (mode: 'light' | 'dark'): PaletteOptions => ({
     disabled: grey[500],
   },
   background: {
-    default: mode === 'light' ? '#f4f6f8' : '#000000',
-    paper: mode === 'light' ? '#ffffff' : '#1e1e2d',
+    default: mode === 'light' ? '#ffffff' : blue[900],
+    paper: mode === 'light' ? '#ffffff' : blue[700],
   },
   gradients: {
     primary: {

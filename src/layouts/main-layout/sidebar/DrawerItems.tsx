@@ -24,7 +24,7 @@ const DrawerItems = () => {
         px={3.5}
         position={'sticky'}
         top={0}
-        bgcolor="info.darker"
+        bgcolor="background.default"
         alignItems="center"
         justifyContent="flex-start"
         zIndex={1000}

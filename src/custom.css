@@ -1,5 +1,5 @@
-/* Container for the table to ensure responsiveness */
 .table-container {
+  width: 100%;
   max-width: 100%;
   overflow-x: auto;
   margin: 20px 0;
@@ -13,6 +13,7 @@
 
 .search-bar-container {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   margin-bottom: 20px;
 }
@@ -47,11 +48,14 @@
 
 /* Table header styling */
 .table thead th {
-  background-color: rgba(128, 128, 128, 0.2);
+  background-color: rgba(128, 128, 128, 0.1);
   color: inherit;
   padding: 12px;
   text-align: center;
-  border: 1px solid rgba(128, 128, 128, 0.2);
+  border-bottom: 2px solid rgba(128, 128, 128, 0.2);
+  border-top: none;
+  border-left: none;
+  border-right: none;
 }
 
 /* Table body cell styling */
@@ -701,6 +705,10 @@ input[type="number"]::placeholder {
 /* Container styling */
 .container {
   padding: 15px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
 }
 
 /* Grid layout for game numbers container */

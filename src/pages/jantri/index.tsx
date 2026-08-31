@@ -75,11 +75,6 @@ const JantriLists = () => {
         <select
           id="categorySelect"
           className="form-control"
-          style={{
-            backgroundColor: '#2c2c2c',
-            color: '#f5f5f5',
-            borderColor: '#444',
-          }}
           onChange={(e) => setSelectedCategoryId(Number(e.target.value))}
         >
           <option value="" style={{ color: '#888' }}>Select a category</option>
@@ -87,7 +82,6 @@ const JantriLists = () => {
             <option
               key={category.id}
               value={category.id}
-              style={{ backgroundColor: '#2c2c2c', color: '#f5f5f5' }}
             >
               {category.name}
             </option>
@@ -98,7 +92,7 @@ const JantriLists = () => {
       {/* Total Amount Display */}
       {selectedCategoryId && (
         <div className="total-amount" style={{ marginTop: '20px', textAlign: 'center' }}>
-          <h3 style={{ color: '#f5f5f5' }}>Total Amount for Category: ₹{totalAmount}</h3>
+          <h3>Total Amount for Category: ₹{totalAmount}</h3>
         </div>
       )}
 
@@ -116,11 +110,9 @@ const JantriLists = () => {
             {/* Number Label */}
             <div
               style={{
-                backgroundColor: '#2c2c2c',
-                color: '#f5f5f5',
                 padding: '10px',
                 borderRadius: '4px',
-                border: '1px solid #444',
+                border: '1px solid #ccc',
                 marginBottom: '5px',
               }}
             >
@@ -134,9 +126,6 @@ const JantriLists = () => {
               readOnly
               className="form-control"
               style={{
-                backgroundColor: '#2c2c2c',
-                color: '#f5f5f5',
-                borderColor: '#444',
                 textAlign: 'center',
               }}
             />

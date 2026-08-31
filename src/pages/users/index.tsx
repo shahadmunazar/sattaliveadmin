@@ -536,7 +536,8 @@ const handleCloseSnackbar = () => {
           
           {/* Table displaying referral data */}
           {referralData ? (
-            <table>
+            <div className="table-container">
+              <table>
               <thead>
                 <tr>
                   <th>Name</th>
@@ -568,6 +569,7 @@ const handleCloseSnackbar = () => {
 ))}
               </tbody>
             </table>
+            </div>
           ) : (
             <p>Loading referral details...</p>
           )}
@@ -584,7 +586,8 @@ const handleCloseSnackbar = () => {
     <div className="modal-content">
       <span className="close" onClick={() => setShowGameHistoryModal(false)}>&times;</span>
       <h2>Game History</h2>
-      <table className="table">
+      <div className="table-container">
+        <table className="table">
         <thead>
           <tr>
             <th>ID</th>
@@ -625,6 +628,7 @@ const handleCloseSnackbar = () => {
           ))}
         </tbody>
       </table>
+      </div>
       <button className="btn btn-secondary" onClick={() => setShowGameHistoryModal(false)}>
         Close
       </button>
@@ -681,7 +685,8 @@ const handleCloseSnackbar = () => {
             ? 'All Transactions'
             : `${selectedTab.charAt(0).toUpperCase() + selectedTab.slice(1)} Transactions`}
         </h2>
-        <table className="table">
+        <div className="table-container">
+          <table className="table">
           <thead>
             <tr>
               <th>ID</th>
@@ -707,6 +712,7 @@ const handleCloseSnackbar = () => {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
 
       <button className="btn btn-secondary" onClick={() => setShowUserHistoryModal(false)}>

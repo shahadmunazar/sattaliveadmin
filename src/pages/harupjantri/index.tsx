@@ -74,23 +74,17 @@ const HarupJantriLists = () => {
       {/* Flexbox container for dropdowns */}
       <div className="form-group d-flex justify-content-between mb-4">
         <div className="w-50">
-          <label htmlFor="categorySelect" style={{ color: '#f5f5f5' }}>Select Category</label>
+          <label htmlFor="categorySelect">Select Category</label>
           <select
             id="categorySelect"
             className="form-control"
-            style={{
-              backgroundColor: '#2c2c2c',
-              color: '#f5f5f5',
-              borderColor: '#444',
-            }}
             onChange={(e) => setSelectedCategoryId(Number(e.target.value))}
           >
-            <option value="" style={{ color: '#888' }}>Select a category</option>
+            <option value="">Select a category</option>
             {categories.map((category) => (
               <option
                 key={category.id}
                 value={category.id}
-                style={{ backgroundColor: '#2c2c2c', color: '#f5f5f5' }}
               >
                 {category.name}
               </option>
@@ -99,37 +93,32 @@ const HarupJantriLists = () => {
         </div>
 
         <div className="w-50 ms-3">
-          <label htmlFor="gameTypeSelect" style={{ color: '#f5f5f5' }}>Select Game Type</label>
+          <label htmlFor="gameTypeSelect">Select Game Type</label>
           <select
             id="gameTypeSelect"
             className="form-control"
-            style={{
-              backgroundColor: '#2c2c2c',
-              color: '#f5f5f5',
-              borderColor: '#444',
-            }}
             onChange={(e) => setSelectedGameType(e.target.value)} // Update game type
             value={selectedGameType}
           >
-            <option value="" style={{ backgroundColor: '#2c2c2c', color: '#f5f5f5' }}>Select a game type</option>
-            <option value="bahar_harup" style={{ backgroundColor: '#2c2c2c', color: '#f5f5f5' }}>Bahar Harup</option>
-            <option value="ander_harup" style={{ backgroundColor: '#2c2c2c', color: '#f5f5f5' }}>Ander Harup</option>
+            <option value="">Select a game type</option>
+            <option value="bahar_harup">Bahar Harup</option>
+            <option value="ander_harup">Ander Harup</option>
           </select>
         </div>
       </div>
 
-      <div className="my-4" style={{ color: '#f5f5f5' }}>
+      <div className="my-4">
         <h3>Total Amount: {totalAmount !== null ? totalAmount : 0}</h3>
       </div>
 
       {/* Betting Totals Table */}
-      <div className="my-4">
-        <h4 style={{ color: '#f5f5f5' }}>Betting Totals:</h4>
-        <table className="table" style={{ backgroundColor: '#2c2c2c', color: '#f5f5f5' }}>
+      <div className="my-4 table-container">
+        <h4>Betting Totals:</h4>
+        <table className="table">
           <thead>
             <tr>
-              <th style={{ color: '#f5f5f5' }}>Number</th>
-              <th style={{ color: '#f5f5f5' }}>Total Amount</th>
+              <th>Number</th>
+              <th>Total Amount</th>
             </tr>
           </thead>
           <tbody>
