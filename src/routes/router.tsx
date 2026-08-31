@@ -26,6 +26,7 @@ const AddProfitLoss =  lazy(() => import('pages/add_money_records'))
 const HarupJantriLists  = lazy(() => import('pages/harupjantri'));
 const PaymentQR = lazy(() => import('pages/paymentqr'));
 const AppSettings = lazy(() => import('pages/appsettings'));
+const DailyStats = lazy(() => import('pages/daily-stats'));
 
 // HarupJantriLists
 const router = createBrowserRouter(
@@ -294,7 +295,22 @@ const router = createBrowserRouter(
             },
           ],
         },
-
+        {
+          path: '/daily-stats',
+          element: (
+            <MainLayout>
+              <Suspense fallback={<PageLoader />}>
+                <Outlet />
+              </Suspense>
+            </MainLayout>
+          ),
+          children: [
+            {
+              index: true,
+              element: <DailyStats />,
+            },
+          ],
+        },
         {
           path: rootPaths.authRoot,
           element: (

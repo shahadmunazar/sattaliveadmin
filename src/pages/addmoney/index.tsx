@@ -307,7 +307,7 @@ const AddMoney: React.FC = () => {
         </Typography>
         <TableContainer component={Paper}>
           <Table>
-            <TableHead>
+            <TableHead sx={{ '& th': { bgcolor: 'transparent !important' } }}>
               <TableRow>
                 <TableCell>User Name</TableCell>
                 <TableCell>User Mobile</TableCell>
@@ -360,7 +360,7 @@ const AddMoney: React.FC = () => {
         </Typography>
         <TableContainer component={Paper}>
           <Table>
-            <TableHead>
+            <TableHead sx={{ '& th': { bgcolor: 'transparent !important' } }}>
               <TableRow>
                 <TableCell>User Name</TableCell>
                 <TableCell>User Mobile</TableCell>

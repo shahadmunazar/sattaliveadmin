@@ -50,6 +50,14 @@ const TopCards = () => {
             isUp: data.today_count_credit_transaction >= 0,
             icon: 'mdi:currency-inr',
           },
+          {
+            id: 5,
+            title: 'Rejected Withdrawal Requests',
+            value: (data.today_reject_request_money || 0).toString(),
+            rate: `No: ${data.today_reject_request_count || 0}`,
+            isUp: (data.today_reject_request_count || 0) >= 0,
+            icon: 'mdi:currency-inr',
+          },
           
           {
             id: 8,

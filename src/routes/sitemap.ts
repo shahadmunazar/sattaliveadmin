@@ -147,6 +147,14 @@ const sitemap: MenuItem[] = [
     active: true,
 
   },
+  {
+    id: 'daily_stats',
+    subheader: 'Daily Stats',
+    path: '/daily-stats',
+    icon: 'mingcute:chart-bar-2-line',
+    active: true,
+
+  },
   
 
 ];
