@@ -49,7 +49,8 @@ declare module '@mui/material/styles' {
   }
 }
 
-const palette: PaletteOptions = {
+const palette = (mode: 'light' | 'dark'): PaletteOptions => ({
+  mode,
   neutral: {
     lighter: grey[100],
     light: grey[200],
@@ -83,9 +84,13 @@ const palette: PaletteOptions = {
     main: red[500],
   },
   text: {
-    primary: white[500],
-    secondary: grey[300],
+    primary: mode === 'light' ? grey[800] : white[500],
+    secondary: mode === 'light' ? grey[600] : grey[300],
     disabled: grey[500],
+  },
+  background: {
+    default: mode === 'light' ? '#f4f6f8' : '#000000',
+    paper: mode === 'light' ? '#ffffff' : '#1e1e2d',
   },
   gradients: {
     primary: {
@@ -104,6 +109,6 @@ const palette: PaletteOptions = {
       main: transparentRed[500],
     },
   },
-};
+});
 
 export default palette;

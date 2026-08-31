@@ -11,6 +11,7 @@ import Image from 'components/base/Image';
 import LogoImg from 'assets/images/Logo.png';
 import LanguageSelect from './LanguageSelect';
 import ProfileMenu from './ProfileMenu';
+import { useColorTheme } from 'contexts/ThemeContext';
 
 interface TopbarProps {
   isClosing: boolean;
@@ -19,6 +20,7 @@ interface TopbarProps {
 }
 
 const Topbar = ({ isClosing, mobileOpen, setMobileOpen }: TopbarProps) => {
+  const { mode, toggleColorMode } = useColorTheme();
   const handleDrawerToggle = () => {
     if (!isClosing) {
       setMobileOpen(!mobileOpen);
@@ -62,6 +64,12 @@ const Topbar = ({ isClosing, mobileOpen, setMobileOpen }: TopbarProps) => {
 
       <Stack spacing={1} alignItems="center">
         <LanguageSelect />
+        
+        <Tooltip title="Toggle Theme">
+          <IconButton size="large" sx={{ color: 'text.secondary' }} onClick={toggleColorMode}>
+            <IconifyIcon icon={mode === 'light' ? 'mingcute:moon-fill' : 'mingcute:sun-fill'} />
+          </IconButton>
+        </Tooltip>
 
         <Tooltip title="Notifications">
           <IconButton size="large" sx={{ color: 'text.secondary' }}>

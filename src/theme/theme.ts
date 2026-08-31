@@ -33,9 +33,9 @@ import PaginationItem from './components/pagination/PaginationItem';
 import Paper from './components/surfaces/Paper';
 import CssBaseline from './components/utils/CssBaseline';
 
-export const theme = createTheme({
+export const createCustomTheme = (mode: 'light' | 'dark') => createTheme({
   typography,
-  palette,
+  palette: palette(mode),
   components: {
     MuiButton: Button,
     MuiButtonBase: ButtonBase,
