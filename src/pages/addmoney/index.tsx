@@ -31,8 +31,9 @@ interface User {
   id: number;
   name: string;
   mobile: string;
-  balance?: string;
-  deposit_balance?: string;
+  balance?: string | number;
+  deposit_balance?: string | number;
+  winning_balance?: string | number;
 }
 
 interface AdminAddedMoneyRecord {
@@ -44,6 +45,10 @@ interface AdminAddedMoneyRecord {
   previous_balance: string;
   current_balance: string;
   available_balance?: string;
+  user_live_balance?: string;
+  user_deposit_balance?: string;
+  user_winning_balance?: string;
+  user?: User;
   description: string;
   status: string;
   created_at: string;
@@ -59,6 +64,9 @@ interface MoneyRequest {
   image: string | null;
   transaction_date: string;
   available_balance: string;
+  user_live_balance?: string;
+  user_deposit_balance?: string;
+  user_winning_balance?: string;
   created_at: string;
   updated_at: string;
   user: User;
@@ -73,6 +81,24 @@ const AddMoney: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [users, setUsers] = useState<User[]>([]);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [refreshingUser, setRefreshingUser] = useState<boolean>(false);
+
+  const refreshSelectedUser = async (userId: number) => {
+    setRefreshingUser(true);
+    try {
+      const response = await axios.get(
+        `https://liveapi.sattalives.com/api/admin/user-details?id=${userId}`,
+        { headers: { Authorization: `Bearer ${getToken()}` } }
+      );
+      if (response.data && response.data.data) {
+        setSelectedUser(response.data.data);
+      }
+    } catch (err) {
+      console.error("Failed to refresh user live balance", err);
+    } finally {
+      setRefreshingUser(false);
+    }
+  };
 
   // Dedicated Admin Added Money Table state (Separate Table)
   const [addedMoneyRecords, setAddedMoneyRecords] = useState<AdminAddedMoneyRecord[]>([]);
@@ -187,6 +213,9 @@ const AddMoney: React.FC = () => {
       setSearchQuery('');
       setAmount(null);
       setCustomAmount('');
+      if (selectedUser?.id) {
+        refreshSelectedUser(selectedUser.id);
+      }
       setSelectedUser(null);
       fetchAddedMoneyRecords(1);
       setCurrentAddedPage(1);
@@ -363,10 +392,41 @@ const AddMoney: React.FC = () => {
           )}
 
           {selectedUser && (
-            <Box sx={{ mt: 2, p: 2, bgcolor: 'background.default', borderRadius: 2 }}>
-              <Typography variant="subtitle1" sx={{ mb: 2 }}>
-                Selected User: <strong>{selectedUser.name}</strong> | Mobile: <strong>{selectedUser.mobile}</strong>
-              </Typography>
+            <Box sx={{ mt: 2, p: 2.5, bgcolor: 'background.default', borderRadius: 2, border: '1px solid #e0e0e0' }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5, flexWrap: 'wrap', gap: 1 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                  Selected User: <strong>{selectedUser.name}</strong> | Mobile: <strong>{selectedUser.mobile}</strong>
+                </Typography>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={() => refreshSelectedUser(selectedUser.id)}
+                  disabled={refreshingUser}
+                  startIcon={refreshingUser ? <CircularProgress size={16} /> : null}
+                >
+                  {refreshingUser ? "Checking..." : "🔄 Check Live Balance"}
+                </Button>
+              </Box>
+
+              <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', mb: 2 }}>
+                <Chip
+                  label={`Total Current Balance: ₹${selectedUser.balance ?? "0.00"}`}
+                  color="primary"
+                  sx={{ fontWeight: "bold", fontSize: "0.95rem", py: 2 }}
+                />
+                <Chip
+                  label={`Deposit Balance: ₹${selectedUser.deposit_balance ?? "0.00"}`}
+                  color="info"
+                  variant="outlined"
+                  sx={{ fontWeight: 600 }}
+                />
+                <Chip
+                  label={`Winning Balance: ₹${selectedUser.winning_balance ?? "0.00"}`}
+                  color="success"
+                  variant="outlined"
+                  sx={{ fontWeight: 600 }}
+                />
+              </Box>
 
               <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>
                 Select Quick Amount:
@@ -446,7 +506,8 @@ const AddMoney: React.FC = () => {
                   <TableCell>User Mobile</TableCell>
                   <TableCell>Added Amount</TableCell>
                   <TableCell>Previous Bal</TableCell>
-                  <TableCell>Current Bal</TableCell>
+                  <TableCell>Bal After Credit</TableCell>
+                  <TableCell>Current Live Balance</TableCell>
                   <TableCell>Date & Time</TableCell>
                   <TableCell>Status</TableCell>
                   <TableCell align="center">Action</TableCell>
@@ -455,13 +516,13 @@ const AddMoney: React.FC = () => {
               <TableBody>
                 {loadingAddedMoney ? (
                   <TableRow>
-                    <TableCell colSpan={8} align="center" sx={{ py: 3 }}>
+                    <TableCell colSpan={9} align="center" sx={{ py: 3 }}>
                       <CircularProgress size={28} />
                     </TableCell>
                   </TableRow>
                 ) : addedMoneyRecords.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} align="center" sx={{ py: 3 }}>
+                    <TableCell colSpan={9} align="center" sx={{ py: 3 }}>
                       No added money records found.
                     </TableCell>
                   </TableRow>
@@ -475,6 +536,14 @@ const AddMoney: React.FC = () => {
                       </TableCell>
                       <TableCell>₹{record.previous_balance ?? '0.00'}</TableCell>
                       <TableCell>₹{record.current_balance ?? record.available_balance ?? '0.00'}</TableCell>
+                      <TableCell>
+                        <Chip
+                          label={`₹${record.user_live_balance ?? record.user?.balance ?? record.current_balance ?? "0.00"}`}
+                          size="small"
+                          color="primary"
+                          sx={{ fontWeight: "bold" }}
+                        />
+                      </TableCell>
                       <TableCell>{new Date(record.created_at || record.transaction_date).toLocaleString()}</TableCell>
                       <TableCell>
                         <Chip
@@ -529,6 +598,7 @@ const AddMoney: React.FC = () => {
                   <TableCell>User Name</TableCell>
                   <TableCell>User Mobile</TableCell>
                   <TableCell>Requested Amount</TableCell>
+                  <TableCell>Current Live Balance</TableCell>
                   <TableCell>Date</TableCell>
                   <TableCell>Status</TableCell>
                   <TableCell align="center">Action</TableCell>
@@ -537,7 +607,7 @@ const AddMoney: React.FC = () => {
               <TableBody>
                 {pendingRequests.filter(req => req.confirm_payment === 'not_confirm' || req.confirm_payment === 'pending' || req.confirm_payment === 'not_approved' || req.confirm_payment === 'not_accepted').length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} align="center" sx={{ py: 3 }}>
+                    <TableCell colSpan={7} align="center" sx={{ py: 3 }}>
                       No pending requests found.
                     </TableCell>
                   </TableRow>
@@ -549,6 +619,15 @@ const AddMoney: React.FC = () => {
                         <TableCell sx={{ fontWeight: 500 }}>{request.user?.name}</TableCell>
                         <TableCell>{request.user?.mobile}</TableCell>
                         <TableCell sx={{ fontWeight: 'bold' }}>₹{request.amount}</TableCell>
+                        <TableCell>
+                          <Chip
+                            label={`₹${request.user_live_balance ?? request.user?.balance ?? request.available_balance ?? "0.00"}`}
+                            size="small"
+                            color="primary"
+                            variant="outlined"
+                            sx={{ fontWeight: "bold" }}
+                          />
+                        </TableCell>
                         <TableCell>{new Date(request.created_at || request.transaction_date).toLocaleString()}</TableCell>
                         <TableCell>
                           <Chip label={request.confirm_payment} size="small" color="warning" />
