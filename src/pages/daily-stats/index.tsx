@@ -20,6 +20,7 @@ interface UserStat {
   user_id: number;
   user_name: string;
   user_mobile: string;
+  total_bet: number;
   total_won: number;
   total_loss: number;
 }
@@ -154,6 +155,7 @@ const DailyStats: React.FC = () => {
                   <TableCell>User ID</TableCell>
                   <TableCell>Name</TableCell>
                   <TableCell>Mobile</TableCell>
+                  <TableCell>Total Bet</TableCell>
                   <TableCell>Total Won</TableCell>
                   <TableCell>Total Loss</TableCell>
                 </TableRow>
@@ -164,6 +166,9 @@ const DailyStats: React.FC = () => {
                     <TableCell>{user.user_id}</TableCell>
                     <TableCell>{user.user_name}</TableCell>
                     <TableCell>{user.user_mobile}</TableCell>
+                    <TableCell>
+                      ₹{user.total_bet}
+                    </TableCell>
                     <TableCell sx={{ color: 'success.main', fontWeight: 'bold' }}>
                       ₹{user.total_won}
                     </TableCell>

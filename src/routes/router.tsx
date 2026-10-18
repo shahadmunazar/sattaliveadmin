@@ -27,6 +27,8 @@ const HarupJantriLists  = lazy(() => import('pages/harupjantri'));
 const PaymentQR = lazy(() => import('pages/paymentqr'));
 const AppSettings = lazy(() => import('pages/appsettings'));
 const DailyStats = lazy(() => import('pages/daily-stats'));
+const DeletedRecords = lazy(() => import('pages/deleted_records'));
+const AuditLogs = lazy(() => import('pages/audit_logs'));
 
 // HarupJantriLists
 const router = createBrowserRouter(
@@ -308,6 +310,38 @@ const router = createBrowserRouter(
             {
               index: true,
               element: <DailyStats />,
+            },
+          ],
+        },
+        {
+          path: '/deleted-records',
+          element: (
+            <MainLayout>
+              <Suspense fallback={<PageLoader />}>
+                <Outlet />
+              </Suspense>
+            </MainLayout>
+          ),
+          children: [
+            {
+              index: true,
+              element: <DeletedRecords />,
+            },
+          ],
+        },
+        {
+          path: '/audit-logs',
+          element: (
+            <MainLayout>
+              <Suspense fallback={<PageLoader />}>
+                <Outlet />
+              </Suspense>
+            </MainLayout>
+          ),
+          children: [
+            {
+              index: true,
+              element: <AuditLogs />,
             },
           ],
         },

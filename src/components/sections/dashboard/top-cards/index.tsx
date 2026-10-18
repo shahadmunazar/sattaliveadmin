@@ -107,6 +107,22 @@ const TopCards = () => {
             isUp: data.total_count_transaction >= 0,
             icon: 'mdi:currency-inr',
           },
+          {
+            id: 13,
+            title: 'Total Money Added',
+            value: (data.total_money_added || 0).toString(),
+            rate: `No: ${data.total_money_added_count || 0}`,
+            isUp: (data.total_money_added_count || 0) >= 0,
+            icon: 'mdi:currency-inr',
+          },
+          {
+            id: 14,
+            title: 'Total Withdrawal',
+            value: (data.total_withdrawal || 0).toString(),
+            rate: `No: ${data.total_withdrawal_count || 0}`,
+            isUp: (data.total_withdrawal_count || 0) >= 0,
+            icon: 'mdi:currency-inr',
+          },
         ];
 
         setCardsData(mappedData);

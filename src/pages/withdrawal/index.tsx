@@ -20,6 +20,7 @@ interface WithdrawalRequest {
   created_at: string;
   updated_at: string;
   // Removed qr_code_image_url because we will compute it
+  payment_screenshot?: string | null; // The uploaded confirmation screenshot
 }
 
 interface PaginationLink {
@@ -46,6 +47,10 @@ const WithdrawalRequestComponent = () => {
   const [error, setError] = useState<string | null>(null);
   const [pagination, setPagination] = useState<Pagination | null>(null);
   const [loading, setLoading] = useState(false);
+  
+  // New state variables for Image Viewer and File Upload
+  const [viewerImage, setViewerImage] = useState<string | null>(null);
+  const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
 
   const getToken = () => {
     return localStorage.getItem('authToken') || '';
@@ -93,20 +98,33 @@ const WithdrawalRequestComponent = () => {
 
   const updateRequestStatus = async (id: number, status: string) => {
     try {
-      await axios.put(
+      if (status === 'approved' && !screenshotFile) {
+        setError('Confirmation screenshot is required to approve this request.');
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('id', id.toString());
+      formData.append('payment_status', status);
+      
+      if (status === 'approved' && screenshotFile) {
+        formData.append('payment_screenshot', screenshotFile);
+      }
+
+      await axios.post(
         'https://liveapi.sattalives.com/api/admin/update-withdrawal-status',
-        {
-          id,
-          payment_status: status,
-        },
+        formData,
         {
           headers: {
             Authorization: `Bearer ${getToken()}`,
-            'Content-Type': 'application/json',
+            'Content-Type': 'multipart/form-data',
           },
         }
       );
+      
+      setScreenshotFile(null);
       fetchRequests(pagination?.current_page || 1); // Refresh requests on current page after update
+      setShowModal(false);
     } catch (error) {
       console.error('Failed to update withdrawal status', error);
       setError('Failed to update withdrawal status. Please try again.');
@@ -116,7 +134,6 @@ const WithdrawalRequestComponent = () => {
   const handleStatusChange = (status: string) => {
     if (selectedRequest) {
       updateRequestStatus(selectedRequest.id, status);
-      setShowModal(false);
     }
   };
 
@@ -179,6 +196,7 @@ const WithdrawalRequestComponent = () => {
               <th>Account Number</th>
               <th>IFSC Code</th>
               <th>QR Code</th>
+              <th>Confirm Screenshot</th>
               <th>Request Money</th>
               <th>Withdrawal Status</th>
               <th>Created At</th>
@@ -212,10 +230,23 @@ const WithdrawalRequestComponent = () => {
                       <img
                         src={getFullQrCodeUrl(request.qr_code_image)!}
                         alt="QR Code"
-                        style={{ width: 50, height: 50 }}
+                        style={{ width: 50, height: 50, cursor: 'pointer', objectFit: 'cover' }}
+                        onClick={() => setViewerImage(getFullQrCodeUrl(request.qr_code_image)!)}
                       />
                     ) : (
                       'No QR Code'
+                    )}
+                  </td>
+                  <td data-label="Confirm Screenshot">
+                    {request.payment_screenshot ? (
+                      <img
+                        src={getFullQrCodeUrl(request.payment_screenshot || null)!}
+                        alt="Confirm Screenshot"
+                        style={{ width: 50, height: 50, cursor: 'pointer', objectFit: 'cover' }}
+                        onClick={() => setViewerImage(getFullQrCodeUrl(request.payment_screenshot || null)!)}
+                      />
+                    ) : (
+                      'N/A'
                     )}
                   </td>
                   <td data-label="Request Money">{request.request_money}</td>
@@ -283,9 +314,8 @@ const WithdrawalRequestComponent = () => {
         </nav>
       )}
 
-      {/* Edit Modal */}
       {showModal && selectedRequest && (
-        <div className="modal" style={{ display: 'block' }}>
+        <div className="modal" style={{ display: 'flex' }}>
           <div className="modal-dialog">
             <div className="modal-content">
               <div className="modal-header">
@@ -332,17 +362,31 @@ const WithdrawalRequestComponent = () => {
                     id="status"
                     name="status"
                     value={selectedRequest.withdrawal_money_status}
-                    onChange={(e) =>
+                    onChange={(e) => {
                       setSelectedRequest((prev) =>
                         prev ? { ...prev, withdrawal_money_status: e.target.value } : prev
-                      )
-                    }
+                      );
+                      setScreenshotFile(null); // Reset file when status changes
+                    }}
                     className="form-control"
                   >
                     <option value="not_approved">Not Accepted</option>
                     <option value="approved">Approved</option>
                   </select>
                 </div>
+                
+                {selectedRequest.withdrawal_money_status === 'approved' && (
+                  <div className="form-group mt-3">
+                    <label htmlFor="screenshot">Confirm Screenshot (Required)*</label>
+                    <input
+                      type="file"
+                      id="screenshot"
+                      accept="image/*"
+                      className="form-control"
+                      onChange={(e) => setScreenshotFile(e.target.files ? e.target.files[0] : null)}
+                    />
+                  </div>
+                )}
               </div>
               <div className="modal-footer">
                 <button
@@ -351,6 +395,7 @@ const WithdrawalRequestComponent = () => {
                   onClick={() => {
                     setShowModal(false);
                     setError(null);
+                    setScreenshotFile(null);
                   }}
                 >
                   Cancel
@@ -367,6 +412,58 @@ const WithdrawalRequestComponent = () => {
           </div>
           {/* Modal backdrop */}
           <div className="modal-backdrop show"></div>
+        </div>
+      )}
+
+      {/* Image Viewer Modal */}
+      {viewerImage && (
+        <div className="modal" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1050, backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-dialog-centered modal-lg" style={{ maxWidth: '95vw', width: 'auto', margin: '1rem' }}>
+            <div className="modal-content" style={{ maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
+              <div className="modal-header">
+                <h5 className="modal-title">Image Viewer</h5>
+                <button
+                  type="button"
+                  className="close"
+                  style={{ border: 'none', background: 'transparent', fontSize: '1.5rem', cursor: 'pointer' }}
+                  onClick={() => setViewerImage(null)}
+                >
+                  &times;
+                </button>
+              </div>
+              <div className="modal-body" style={{ overflowY: 'auto', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '1rem' }}>
+                <img 
+                  src={viewerImage} 
+                  alt="View" 
+                  style={{ 
+                    maxWidth: '100%', 
+                    maxHeight: '65vh', 
+                    objectFit: 'contain',
+                    borderRadius: '4px',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                  }} 
+                />
+              </div>
+              <div className="modal-footer" style={{ flexWrap: 'wrap', justifyContent: 'center', gap: '10px' }}>
+                <a
+                  href={viewerImage}
+                  download="image.jpg"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn btn-success"
+                >
+                  Download / View Full
+                </a>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setViewerImage(null)}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

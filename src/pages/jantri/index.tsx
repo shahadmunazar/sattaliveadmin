@@ -100,7 +100,7 @@ const JantriLists = () => {
         className="grid-container"
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(10, 1fr)', // 10 columns per row
+          gridTemplateColumns: 'repeat(auto-fill, minmax(75px, 1fr))',
           gap: '10px',
           marginTop: '20px',
         }}

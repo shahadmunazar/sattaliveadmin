@@ -153,7 +153,20 @@ const sitemap: MenuItem[] = [
     path: '/daily-stats',
     icon: 'mingcute:chart-bar-2-line',
     active: true,
-
+  },
+  {
+    id: 'deleted_records',
+    subheader: 'Deleted Records',
+    path: '/deleted-records',
+    icon: 'mingcute:delete-2-line',
+    active: true,
+  },
+  {
+    id: 'audit_logs',
+    subheader: 'Audit Logs',
+    path: '/audit-logs',
+    icon: 'mingcute:history-line',
+    active: true,
   },
   
 
