@@ -48,6 +48,8 @@ interface AdminAddedMoneyRecord {
   user_live_balance?: string;
   user_deposit_balance?: string;
   user_winning_balance?: string;
+  is_used?: boolean;
+  can_delete?: boolean;
   user?: User;
   description: string;
   status: string;
@@ -554,14 +556,27 @@ const AddMoney: React.FC = () => {
                         />
                       </TableCell>
                       <TableCell align="center">
-                        <Button
-                          variant="outlined"
-                          color="error"
-                          size="small"
-                          onClick={() => handleOpenDelete(record)}
-                        >
-                          Delete
-                        </Button>
+                        {record.is_used === true ||
+                        record.can_delete === false ||
+                        (record.user_deposit_balance !== undefined && parseFloat(String(record.user_deposit_balance)) < parseFloat(String(record.amount))) ||
+                        (record.user_live_balance !== undefined && parseFloat(String(record.user_live_balance)) < parseFloat(String(record.amount))) ||
+                        (record.current_balance !== undefined && record.user_deposit_balance !== undefined && parseFloat(String(record.user_deposit_balance)) < parseFloat(String(record.current_balance))) ? (
+                          <Chip
+                            label="Used (Locked)"
+                            size="small"
+                            variant="outlined"
+                            sx={{ color: 'text.secondary', borderColor: '#ccc', fontSize: '0.75rem' }}
+                          />
+                        ) : (
+                          <Button
+                            variant="outlined"
+                            color="error"
+                            size="small"
+                            onClick={() => handleOpenDelete(record)}
+                          >
+                            Delete
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))
