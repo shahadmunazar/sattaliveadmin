@@ -24,6 +24,8 @@ import {
   CardContent,
   Alert,
   CircularProgress,
+  Grid,
+  Divider,
 } from '@mui/material';
 import Swal from 'sweetalert2';
 
@@ -96,7 +98,7 @@ const AddMoney: React.FC = () => {
         setSelectedUser(response.data.data);
       }
     } catch (err) {
-      console.error("Failed to refresh user live balance", err);
+      console.error('Failed to refresh user live balance', err);
     } finally {
       setRefreshingUser(false);
     }
@@ -148,7 +150,7 @@ const AddMoney: React.FC = () => {
           `https://liveapi.sattalives.com/api/admin/admin-added-money-list?page=${page}&per_page=${itemsPerPage}`,
           { headers: { Authorization: `Bearer ${getToken()}` } }
         );
-      } catch (e) {
+      } catch {
         // Fallback to all-money-added-list if endpoint not yet deployed
         res = await axios.get(
           `https://liveapi.sattalives.com/api/admin/all-money-added-list?page=${page}&per_page=${itemsPerPage}`,
@@ -229,23 +231,26 @@ const AddMoney: React.FC = () => {
         errMsg = data.message || data.error || errMsg;
       }
       setError(errMsg);
-      Swal.fire('Error', errMsg, 'error');
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const handleAddedPageChange = (_event: React.ChangeEvent<unknown>, value: number) => {
+    setCurrentAddedPage(value);
+  };
+
   const handleApproveRequest = async (request: MoneyRequest) => {
     try {
-      await axios.put(`https://liveapi.sattalives.com/api/admin/payment-confirmation/${request.id}`, {
-        confirm_payment: 'received_successfully'
-      }, {
-        headers: { Authorization: `Bearer ${getToken()}`, 'Content-Type': 'application/json' },
-      });
+      await axios.post(
+        `https://liveapi.sattalives.com/api/admin/approve-add-money`,
+        { id: request.id },
+        { headers: { Authorization: `Bearer ${getToken()}`, 'Content-Type': 'application/json' } }
+      );
       fetchPendingRequests();
       fetchAddedMoneyRecords(currentAddedPage);
       setIsRequestModalOpen(false);
-      Swal.fire('Approved!', 'Money request approved successfully.', 'success');
+      Swal.fire('Approved!', `₹${request.amount} has been added to the user's wallet.`, 'success');
     } catch (err) {
       console.error('Failed to approve request', err);
       Swal.fire('Error', 'Failed to approve money request. Please try again.', 'error');
@@ -254,11 +259,11 @@ const AddMoney: React.FC = () => {
 
   const handleRejectRequest = async (request: MoneyRequest) => {
     try {
-      await axios.put(`https://liveapi.sattalives.com/api/admin/payment-confirmation/${request.id}`, {
-        confirm_payment: 'not_confirm'
-      }, {
-        headers: { Authorization: `Bearer ${getToken()}`, 'Content-Type': 'application/json' },
-      });
+      await axios.post(
+        `https://liveapi.sattalives.com/api/admin/reject-add-money`,
+        { id: request.id },
+        { headers: { Authorization: `Bearer ${getToken()}`, 'Content-Type': 'application/json' } }
+      );
       fetchPendingRequests();
       fetchAddedMoneyRecords(currentAddedPage);
       setIsRequestModalOpen(false);
@@ -320,6 +325,20 @@ const AddMoney: React.FC = () => {
     }
   };
 
+  const isMoneyUsed = (record: AdminAddedMoneyRecord) => {
+    return (
+      record.is_used === true ||
+      record.can_delete === false ||
+      (record.user_deposit_balance !== undefined &&
+        parseFloat(String(record.user_deposit_balance)) < parseFloat(String(record.amount))) ||
+      (record.user_live_balance !== undefined &&
+        parseFloat(String(record.user_live_balance)) < parseFloat(String(record.amount))) ||
+      (record.current_balance !== undefined &&
+        record.user_deposit_balance !== undefined &&
+        parseFloat(String(record.user_deposit_balance)) < parseFloat(String(record.current_balance)))
+    );
+  };
+
   useEffect(() => {
     fetchAddedMoneyRecords(currentAddedPage);
   }, [currentAddedPage]);
@@ -332,16 +351,41 @@ const AddMoney: React.FC = () => {
     return () => clearInterval(intervalId);
   }, []);
 
+  const pendingList = pendingRequests.filter(
+    (req) =>
+      req.confirm_payment === 'not_confirm' ||
+      req.confirm_payment === 'pending' ||
+      req.confirm_payment === 'not_approved' ||
+      req.confirm_payment === 'not_accepted'
+  );
+
   return (
-    <Box sx={{ p: 3 }}>
-      <Typography variant="h4" gutterBottom sx={{ fontWeight: 'bold' }}>
-        Add Money to User
-      </Typography>
+    <Box sx={{ p: { xs: 1.5, sm: 2.5, md: 3 }, maxWidth: 1400, mx: 'auto' }}>
+      {/* Page Header */}
+      <Box sx={{ mb: { xs: 2.5, sm: 3.5 } }}>
+        <Typography
+          variant="h4"
+          sx={{
+            fontWeight: 'bold',
+            fontSize: { xs: '1.4rem', sm: '1.75rem', md: '2.125rem' },
+            lineHeight: 1.2,
+            mb: 0.5,
+          }}
+        >
+          Add Money to User
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          Direct wallet credit, real-time balance tracking, and user deposit approval management
+        </Typography>
+      </Box>
 
       {/* Card 1: Add Money Form */}
-      <Card sx={{ mb: 4, boxShadow: 2 }}>
-        <CardContent>
-          <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
+      <Card sx={{ mb: { xs: 3, sm: 4 }, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', borderRadius: 2 }}>
+        <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+          <Typography
+            variant="h6"
+            sx={{ fontWeight: 600, fontSize: { xs: '1.1rem', sm: '1.25rem' }, mb: 2 }}
+          >
             Search User & Deposit Money
           </Typography>
 
@@ -358,35 +402,56 @@ const AddMoney: React.FC = () => {
               }
             }}
             variant="outlined"
+            size="medium"
             sx={{ mb: 2 }}
             placeholder="Type user's mobile or name..."
           />
 
           {users.length > 0 && (
-            <Box sx={{ maxHeight: 200, overflowY: 'auto', mb: 2, border: '1px solid #e0e0e0', borderRadius: 1, p: 1 }}>
+            <Box
+              sx={{
+                maxHeight: 220,
+                overflowY: 'auto',
+                mb: 2,
+                border: '1px solid #e0e0e0',
+                borderRadius: 2,
+                p: 1,
+                bgcolor: 'background.paper',
+              }}
+            >
               {users.map((user) => (
                 <Box
                   key={user.id}
                   sx={{
                     p: 1.5,
                     cursor: 'pointer',
-                    borderRadius: 1,
+                    borderRadius: 1.5,
                     display: 'flex',
+                    flexDirection: { xs: 'column', sm: 'row' },
                     justifyContent: 'space-between',
-                    alignItems: 'center',
+                    alignItems: { xs: 'flex-start', sm: 'center' },
+                    gap: 1,
+                    mb: 0.5,
                     bgcolor: selectedUser?.id === user.id ? 'action.selected' : 'transparent',
+                    border: selectedUser?.id === user.id ? '1px solid #1976d2' : '1px solid transparent',
                     '&:hover': { bgcolor: 'action.hover' },
                   }}
                   onClick={() => setSelectedUser(user)}
                 >
-                  <Typography variant="body1">
-                    <strong>{user.name}</strong> ({user.mobile})
-                  </Typography>
+                  <Box>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      {user.name}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      📱 {user.mobile}
+                    </Typography>
+                  </Box>
                   <Chip
                     label={`Bal: ₹${user.balance ?? 0}`}
                     size="small"
                     color="primary"
                     variant="outlined"
+                    sx={{ fontWeight: 'bold' }}
                   />
                 </Box>
               ))}
@@ -394,50 +459,130 @@ const AddMoney: React.FC = () => {
           )}
 
           {selectedUser && (
-            <Box sx={{ mt: 2, p: 2.5, bgcolor: 'background.default', borderRadius: 2, border: '1px solid #e0e0e0' }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5, flexWrap: 'wrap', gap: 1 }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                  Selected User: <strong>{selectedUser.name}</strong> | Mobile: <strong>{selectedUser.mobile}</strong>
-                </Typography>
+            <Box
+              sx={{
+                mt: 2,
+                p: { xs: 2, sm: 2.5 },
+                bgcolor: 'background.default',
+                borderRadius: 2,
+                border: '1px solid #e0e0e0',
+              }}
+            >
+              {/* Selected User Header */}
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexDirection: { xs: 'column', sm: 'row' },
+                  justifyContent: 'space-between',
+                  alignItems: { xs: 'stretch', sm: 'center' },
+                  mb: 2,
+                  gap: 1.5,
+                }}
+              >
+                <Box>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700, fontSize: { xs: '1rem', sm: '1.15rem' } }}>
+                    👤 {selectedUser.name}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Mobile: <strong>{selectedUser.mobile}</strong>
+                  </Typography>
+                </Box>
                 <Button
                   size="small"
                   variant="outlined"
                   onClick={() => refreshSelectedUser(selectedUser.id)}
                   disabled={refreshingUser}
                   startIcon={refreshingUser ? <CircularProgress size={16} /> : null}
+                  sx={{ py: { xs: 1, sm: 0.5 }, fontWeight: 600 }}
                 >
-                  {refreshingUser ? "Checking..." : "🔄 Check Live Balance"}
+                  {refreshingUser ? 'Checking...' : '🔄 Check Live Balance'}
                 </Button>
               </Box>
 
-              <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', mb: 2 }}>
-                <Chip
-                  label={`Total Current Balance: ₹${selectedUser.balance ?? "0.00"}`}
-                  color="primary"
-                  sx={{ fontWeight: "bold", fontSize: "0.95rem", py: 2 }}
-                />
-                <Chip
-                  label={`Deposit Balance: ₹${selectedUser.deposit_balance ?? "0.00"}`}
-                  color="info"
-                  variant="outlined"
-                  sx={{ fontWeight: 600 }}
-                />
-                <Chip
-                  label={`Winning Balance: ₹${selectedUser.winning_balance ?? "0.00"}`}
-                  color="success"
-                  variant="outlined"
-                  sx={{ fontWeight: 600 }}
-                />
-              </Box>
+              {/* Real-time Balances Responsive Summary Cards */}
+              <Grid container spacing={1.5} sx={{ mb: 2.5 }}>
+                <Grid item xs={12} sm={4}>
+                  <Paper
+                    variant="outlined"
+                    sx={{
+                      p: 1.5,
+                      borderRadius: 2,
+                      bgcolor: 'primary.main',
+                      color: 'primary.contrastText',
+                      textAlign: 'center',
+                    }}
+                  >
+                    <Typography variant="caption" sx={{ opacity: 0.9, display: 'block', fontWeight: 500 }}>
+                      Total Live Balance
+                    </Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 800, mt: 0.25 }}>
+                      ₹{selectedUser.balance ?? '0.00'}
+                    </Typography>
+                  </Paper>
+                </Grid>
+                <Grid item xs={6} sm={4}>
+                  <Paper
+                    variant="outlined"
+                    sx={{
+                      p: 1.5,
+                      borderRadius: 2,
+                      bgcolor: 'background.paper',
+                      borderColor: 'info.main',
+                      textAlign: 'center',
+                    }}
+                  >
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 500 }}>
+                      Deposit Balance
+                    </Typography>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'info.main', mt: 0.25 }}>
+                      ₹{selectedUser.deposit_balance ?? '0.00'}
+                    </Typography>
+                  </Paper>
+                </Grid>
+                <Grid item xs={6} sm={4}>
+                  <Paper
+                    variant="outlined"
+                    sx={{
+                      p: 1.5,
+                      borderRadius: 2,
+                      bgcolor: 'background.paper',
+                      borderColor: 'success.main',
+                      textAlign: 'center',
+                    }}
+                  >
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 500 }}>
+                      Winning Balance
+                    </Typography>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'success.main', mt: 0.25 }}>
+                      ₹{selectedUser.winning_balance ?? '0.00'}
+                    </Typography>
+                  </Paper>
+                </Grid>
+              </Grid>
 
-              <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>
+              {/* Quick Amount Selection */}
+              <Typography variant="body2" sx={{ mb: 1, fontWeight: 600 }}>
                 Select Quick Amount:
               </Typography>
-              <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', mb: 2 }}>
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: { xs: 'repeat(4, 1fr)', sm: 'repeat(7, 1fr)' },
+                  gap: 1,
+                  mb: 2,
+                }}
+              >
                 {[100, 200, 300, 500, 1000, 2000, 5000].map((value) => (
                   <Button
                     key={value}
+                    size="small"
                     variant={amount === value ? 'contained' : 'outlined'}
+                    sx={{
+                      minWidth: 0,
+                      py: 1,
+                      fontWeight: 600,
+                      fontSize: { xs: '0.75rem', sm: '0.85rem' },
+                    }}
                     onClick={() => {
                       setAmount(value);
                       setCustomAmount('');
@@ -456,8 +601,9 @@ const AddMoney: React.FC = () => {
                   setCustomAmount(e.target.value);
                   setAmount(null);
                 }}
-                placeholder="Enter amount"
+                placeholder="Enter amount (e.g. 250)"
                 fullWidth
+                size="medium"
                 sx={{ mb: 2 }}
               />
 
@@ -468,6 +614,8 @@ const AddMoney: React.FC = () => {
                 onClick={addMoneyToUser}
                 disabled={(!amount && !customAmount) || isSubmitting}
                 startIcon={isSubmitting ? <CircularProgress size={20} color="inherit" /> : null}
+                fullWidth
+                sx={{ py: 1.4, fontWeight: 'bold', fontSize: '1rem' }}
               >
                 {isSubmitting ? 'Adding Money...' : `Add Money (₹${amount || customAmount || 0})`}
               </Button>
@@ -478,16 +626,25 @@ const AddMoney: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Card 2: Dedicated Separate Table for Admin Added Money History */}
-      <Card sx={{ mb: 4, boxShadow: 2 }}>
-        <CardContent>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+      {/* Card 2: Dedicated Admin Added Money History */}
+      <Card sx={{ mb: { xs: 3, sm: 4 }, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', borderRadius: 2 }}>
+        <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: { xs: 'column', sm: 'row' },
+              justifyContent: 'space-between',
+              alignItems: { xs: 'flex-start', sm: 'center' },
+              gap: 1.5,
+              mb: 2.5,
+            }}
+          >
             <Box>
-              <Typography variant="h5" sx={{ fontWeight: 600 }}>
+              <Typography variant="h5" sx={{ fontWeight: 600, fontSize: { xs: '1.15rem', sm: '1.4rem' } }}>
                 Admin Added Money History
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Records of money added directly to users by administrators (with soft delete support)
+                Direct administrator credits (soft delete enabled if unused)
               </Typography>
             </Box>
             {totalAddedAmount ? (
@@ -495,152 +652,312 @@ const AddMoney: React.FC = () => {
                 label={`Total Added: ₹${totalAddedAmount}`}
                 color="success"
                 variant="filled"
-                sx={{ fontWeight: 'bold' }}
+                sx={{ fontWeight: 'bold', alignSelf: { xs: 'flex-start', sm: 'center' } }}
               />
             ) : null}
           </Box>
 
-          <TableContainer component={Paper} variant="outlined">
-            <Table>
-              <TableHead sx={{ '& th': { bgcolor: 'action.hover', fontWeight: 'bold' } }}>
-                <TableRow>
-                  <TableCell>User Name</TableCell>
-                  <TableCell>User Mobile</TableCell>
-                  <TableCell>Added Amount</TableCell>
-                  <TableCell>Previous Bal</TableCell>
-                  <TableCell>Bal After Credit</TableCell>
-                  <TableCell>Current Live Balance</TableCell>
-                  <TableCell>Date & Time</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell align="center">Action</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {loadingAddedMoney ? (
+          {/* Desktop Table View (>= md screens) */}
+          <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+            <TableContainer component={Paper} variant="outlined" sx={{ overflowX: 'auto', width: '100%' }}>
+              <Table sx={{ minWidth: 850 }}>
+                <TableHead sx={{ '& th': { bgcolor: 'action.hover', fontWeight: 'bold' } }}>
                   <TableRow>
-                    <TableCell colSpan={9} align="center" sx={{ py: 3 }}>
-                      <CircularProgress size={28} />
-                    </TableCell>
+                    <TableCell>User Name</TableCell>
+                    <TableCell>User Mobile</TableCell>
+                    <TableCell>Added Amount</TableCell>
+                    <TableCell>Previous Bal</TableCell>
+                    <TableCell>Bal After Credit</TableCell>
+                    <TableCell>Current Live Balance</TableCell>
+                    <TableCell>Date & Time</TableCell>
+                    <TableCell>Status</TableCell>
+                    <TableCell align="center">Action</TableCell>
                   </TableRow>
-                ) : addedMoneyRecords.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={9} align="center" sx={{ py: 3 }}>
-                      No added money records found.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  addedMoneyRecords.map((record) => (
-                    <TableRow key={record.id} hover>
-                      <TableCell sx={{ fontWeight: 500 }}>{record.user_name}</TableCell>
-                      <TableCell>{record.user_mobile}</TableCell>
-                      <TableCell sx={{ color: 'success.main', fontWeight: 'bold' }}>
-                        +₹{record.amount}
-                      </TableCell>
-                      <TableCell>₹{record.previous_balance ?? '0.00'}</TableCell>
-                      <TableCell>₹{record.current_balance ?? record.available_balance ?? '0.00'}</TableCell>
-                      <TableCell>
-                        <Chip
-                          label={`₹${record.user_live_balance ?? record.user?.balance ?? record.current_balance ?? "0.00"}`}
-                          size="small"
-                          color="primary"
-                          sx={{ fontWeight: "bold" }}
-                        />
-                      </TableCell>
-                      <TableCell>{new Date(record.created_at || record.transaction_date).toLocaleString()}</TableCell>
-                      <TableCell>
-                        <Chip
-                          label={record.status || 'Completed'}
-                          size="small"
-                          color="success"
-                          variant="outlined"
-                        />
-                      </TableCell>
-                      <TableCell align="center">
-                        {record.is_used === true ||
-                        record.can_delete === false ||
-                        (record.user_deposit_balance !== undefined && parseFloat(String(record.user_deposit_balance)) < parseFloat(String(record.amount))) ||
-                        (record.user_live_balance !== undefined && parseFloat(String(record.user_live_balance)) < parseFloat(String(record.amount))) ||
-                        (record.current_balance !== undefined && record.user_deposit_balance !== undefined && parseFloat(String(record.user_deposit_balance)) < parseFloat(String(record.current_balance))) ? (
-                          <Chip
-                            label="Used (Locked)"
-                            size="small"
-                            variant="outlined"
-                            sx={{ color: 'text.secondary', borderColor: '#ccc', fontSize: '0.75rem' }}
-                          />
-                        ) : (
-                          <Button
-                            variant="outlined"
-                            color="error"
-                            size="small"
-                            onClick={() => handleOpenDelete(record)}
-                          >
-                            Delete
-                          </Button>
-                        )}
+                </TableHead>
+                <TableBody>
+                  {loadingAddedMoney ? (
+                    <TableRow>
+                      <TableCell colSpan={9} align="center" sx={{ py: 4 }}>
+                        <CircularProgress size={28} />
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
+                  ) : addedMoneyRecords.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={9} align="center" sx={{ py: 4 }}>
+                        No added money records found.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    addedMoneyRecords.map((record) => (
+                      <TableRow key={record.id} hover>
+                        <TableCell sx={{ fontWeight: 500 }}>{record.user_name}</TableCell>
+                        <TableCell>{record.user_mobile}</TableCell>
+                        <TableCell sx={{ color: 'success.main', fontWeight: 'bold' }}>
+                          +₹{record.amount}
+                        </TableCell>
+                        <TableCell>₹{record.previous_balance ?? '0.00'}</TableCell>
+                        <TableCell>₹{record.current_balance ?? record.available_balance ?? '0.00'}</TableCell>
+                        <TableCell>
+                          <Chip
+                            label={`₹${record.user_live_balance ?? record.user?.balance ?? record.current_balance ?? '0.00'}`}
+                            size="small"
+                            color="primary"
+                            sx={{ fontWeight: 'bold' }}
+                          />
+                        </TableCell>
+                        <TableCell>{new Date(record.created_at || record.transaction_date).toLocaleString()}</TableCell>
+                        <TableCell>
+                          <Chip
+                            label={record.status || 'Completed'}
+                            size="small"
+                            color="success"
+                            variant="outlined"
+                          />
+                        </TableCell>
+                        <TableCell align="center">
+                          {isMoneyUsed(record) ? (
+                            <Chip
+                              label="Used (Locked)"
+                              size="small"
+                              variant="outlined"
+                              sx={{ color: 'text.secondary', borderColor: '#ccc', fontSize: '0.75rem' }}
+                            />
+                          ) : (
+                            <Button
+                              variant="outlined"
+                              color="error"
+                              size="small"
+                              onClick={() => handleOpenDelete(record)}
+                            >
+                              Delete
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Box>
 
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
+          {/* Mobile Optimized Card View (< md screens) */}
+          <Box sx={{ display: { xs: 'flex', md: 'none' }, flexDirection: 'column', gap: 2 }}>
+            {loadingAddedMoney ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                <CircularProgress size={28} />
+              </Box>
+            ) : addedMoneyRecords.length === 0 ? (
+              <Box sx={{ textAlign: 'center', py: 4, color: 'text.secondary' }}>
+                No added money records found.
+              </Box>
+            ) : (
+              addedMoneyRecords.map((record) => (
+                <Paper
+                  key={record.id}
+                  variant="outlined"
+                  sx={{
+                    p: 2,
+                    borderRadius: 2,
+                    bgcolor: 'background.paper',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 1.5,
+                  }}
+                >
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <Box>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
+                        {record.user_name}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        📱 {record.user_mobile}
+                      </Typography>
+                    </Box>
+                    <Chip
+                      label={`+₹${record.amount}`}
+                      color="success"
+                      sx={{ fontWeight: 800, fontSize: '0.95rem' }}
+                    />
+                  </Box>
+
+                  <Divider />
+
+                  <Box
+                    sx={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(2, 1fr)',
+                      gap: 1,
+                      bgcolor: 'action.hover',
+                      p: 1.5,
+                      borderRadius: 1.5,
+                    }}
+                  >
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                        Live User Bal:
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 700, color: 'primary.main' }}>
+                        ₹{record.user_live_balance ?? record.user?.balance ?? record.current_balance ?? '0.00'}
+                      </Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                        Deposit Bal:
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 700, color: 'info.main' }}>
+                        ₹{record.user_deposit_balance ?? '0.00'}
+                      </Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                        Previous Bal:
+                      </Typography>
+                      <Typography variant="body2">
+                        ₹{record.previous_balance ?? '0.00'}
+                      </Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                        Bal After Credit:
+                      </Typography>
+                      <Typography variant="body2">
+                        ₹{record.current_balance ?? record.available_balance ?? '0.00'}
+                      </Typography>
+                    </Box>
+                  </Box>
+
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      pt: 0.5,
+                      flexWrap: 'wrap',
+                      gap: 1,
+                    }}
+                  >
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                        📅 {new Date(record.created_at || record.transaction_date).toLocaleString()}
+                      </Typography>
+                      <Chip
+                        label={record.status || 'Completed'}
+                        size="small"
+                        color="success"
+                        variant="outlined"
+                        sx={{ height: 20, fontSize: '0.65rem', mt: 0.5 }}
+                      />
+                    </Box>
+
+                    <Box>
+                      {isMoneyUsed(record) ? (
+                        <Chip
+                          label="Used (Locked)"
+                          size="small"
+                          variant="outlined"
+                          sx={{ color: 'text.secondary', borderColor: '#ccc', fontSize: '0.75rem' }}
+                        />
+                      ) : (
+                        <Button
+                          variant="outlined"
+                          color="error"
+                          size="small"
+                          onClick={() => handleOpenDelete(record)}
+                        >
+                          Delete
+                        </Button>
+                      )}
+                    </Box>
+                  </Box>
+                </Paper>
+              ))
+            )}
+          </Box>
+
+          {/* Pagination */}
+          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
             <Pagination
               count={totalAddedPages}
               page={currentAddedPage}
-              onChange={(_, page) => setCurrentAddedPage(page)}
+              onChange={handleAddedPageChange}
               color="primary"
+              size="medium"
+              siblingCount={0}
+              sx={{
+                '& .MuiPaginationItem-root': {
+                  fontSize: { xs: '0.8rem', sm: '0.875rem' },
+                },
+              }}
             />
           </Box>
         </CardContent>
       </Card>
 
-      {/* Card 3: Pending User Deposit Requests */}
-      <Card sx={{ mb: 4, boxShadow: 2 }}>
-        <CardContent>
-          <Typography variant="h5" gutterBottom sx={{ fontWeight: 600 }}>
-            Pending User Deposit Requests (Payment Proofs)
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Requests submitted by users uploading UPI/payment screenshots for manual verification
-          </Typography>
+      {/* Card 3: Pending Deposit Requests */}
+      <Card sx={{ mb: 4, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', borderRadius: 2 }}>
+        <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: { xs: 'column', sm: 'row' },
+              justifyContent: 'space-between',
+              alignItems: { xs: 'flex-start', sm: 'center' },
+              gap: 1.5,
+              mb: 2.5,
+            }}
+          >
+            <Box>
+              <Typography variant="h5" sx={{ fontWeight: 600, fontSize: { xs: '1.15rem', sm: '1.4rem' } }}>
+                Pending Deposit Requests
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                User uploaded UPI/payment screenshots requiring manual review & approval
+              </Typography>
+            </Box>
+            <Chip
+              label={`${pendingList.length} Pending`}
+              color={pendingList.length > 0 ? 'warning' : 'default'}
+              variant="filled"
+              sx={{ fontWeight: 'bold', alignSelf: { xs: 'flex-start', sm: 'center' } }}
+            />
+          </Box>
 
-          <TableContainer component={Paper} variant="outlined">
-            <Table>
-              <TableHead sx={{ '& th': { bgcolor: 'action.hover', fontWeight: 'bold' } }}>
-                <TableRow>
-                  <TableCell>User Name</TableCell>
-                  <TableCell>User Mobile</TableCell>
-                  <TableCell>Requested Amount</TableCell>
-                  <TableCell>Current Live Balance</TableCell>
-                  <TableCell>Date</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell align="center">Action</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {pendingRequests.filter(req => req.confirm_payment === 'not_confirm' || req.confirm_payment === 'pending' || req.confirm_payment === 'not_approved' || req.confirm_payment === 'not_accepted').length === 0 ? (
+          {/* Desktop Table View (>= md screens) */}
+          <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+            <TableContainer component={Paper} variant="outlined" sx={{ overflowX: 'auto', width: '100%' }}>
+              <Table sx={{ minWidth: 750 }}>
+                <TableHead sx={{ '& th': { bgcolor: 'action.hover', fontWeight: 'bold' } }}>
                   <TableRow>
-                    <TableCell colSpan={7} align="center" sx={{ py: 3 }}>
-                      No pending requests found.
-                    </TableCell>
+                    <TableCell>User Name</TableCell>
+                    <TableCell>User Mobile</TableCell>
+                    <TableCell>Requested Amount</TableCell>
+                    <TableCell>Current Live Balance</TableCell>
+                    <TableCell>Date</TableCell>
+                    <TableCell>Status</TableCell>
+                    <TableCell align="center">Action</TableCell>
                   </TableRow>
-                ) : (
-                  pendingRequests
-                    .filter(req => req.confirm_payment === 'not_confirm' || req.confirm_payment === 'pending' || req.confirm_payment === 'not_approved' || req.confirm_payment === 'not_accepted')
-                    .map((request) => (
+                </TableHead>
+                <TableBody>
+                  {pendingList.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
+                        No pending requests found.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    pendingList.map((request) => (
                       <TableRow key={request.id} hover>
                         <TableCell sx={{ fontWeight: 500 }}>{request.user?.name}</TableCell>
                         <TableCell>{request.user?.mobile}</TableCell>
                         <TableCell sx={{ fontWeight: 'bold' }}>₹{request.amount}</TableCell>
                         <TableCell>
                           <Chip
-                            label={`₹${request.user_live_balance ?? request.user?.balance ?? request.available_balance ?? "0.00"}`}
+                            label={`₹${request.user_live_balance ?? request.user?.balance ?? request.available_balance ?? '0.00'}`}
                             size="small"
                             color="primary"
                             variant="outlined"
-                            sx={{ fontWeight: "bold" }}
+                            sx={{ fontWeight: 'bold' }}
                           />
                         </TableCell>
                         <TableCell>{new Date(request.created_at || request.transaction_date).toLocaleString()}</TableCell>
@@ -662,32 +979,138 @@ const AddMoney: React.FC = () => {
                         </TableCell>
                       </TableRow>
                     ))
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Box>
+
+          {/* Mobile Optimized Card View (< md screens) */}
+          <Box sx={{ display: { xs: 'flex', md: 'none' }, flexDirection: 'column', gap: 2 }}>
+            {pendingList.length === 0 ? (
+              <Box sx={{ textAlign: 'center', py: 4, color: 'text.secondary' }}>
+                No pending requests found.
+              </Box>
+            ) : (
+              pendingList.map((request) => (
+                <Paper
+                  key={request.id}
+                  variant="outlined"
+                  sx={{
+                    p: 2,
+                    borderRadius: 2,
+                    bgcolor: 'background.paper',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 1.5,
+                  }}
+                >
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <Box>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
+                        {request.user?.name}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        📱 {request.user?.mobile}
+                      </Typography>
+                    </Box>
+                    <Chip
+                      label={`₹${request.amount}`}
+                      color="warning"
+                      sx={{ fontWeight: 800, fontSize: '0.95rem' }}
+                    />
+                  </Box>
+
+                  <Divider />
+
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      bgcolor: 'action.hover',
+                      p: 1.25,
+                      borderRadius: 1.5,
+                    }}
+                  >
+                    <Typography variant="caption" color="text.secondary">
+                      Current User Balance:
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 700, color: 'primary.main' }}>
+                      ₹{request.user_live_balance ?? request.user?.balance ?? request.available_balance ?? '0.00'}
+                    </Typography>
+                  </Box>
+
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="caption" color="text.secondary">
+                      📅 {new Date(request.created_at || request.transaction_date).toLocaleString()}
+                    </Typography>
+                    <Chip label={request.confirm_payment} size="small" color="warning" sx={{ height: 22 }} />
+                  </Box>
+
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    fullWidth
+                    size="medium"
+                    onClick={() => {
+                      setSelectedRequest(request);
+                      setIsRequestModalOpen(true);
+                    }}
+                    sx={{ mt: 0.5, fontWeight: 600 }}
+                  >
+                    View & Process Request
+                  </Button>
+                </Paper>
+              ))
+            )}
+          </Box>
         </CardContent>
       </Card>
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={isDialogOpen} onClose={() => !isDeleting && setIsDialogOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontWeight: 'bold', color: 'error.main' }}>Confirm Deletion</DialogTitle>
+      <Dialog
+        open={isDialogOpen}
+        onClose={() => !isDeleting && setIsDialogOpen(false)}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{ sx: { m: { xs: 2, sm: 3 }, borderRadius: 2 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 'bold', color: 'error.main', pb: 1 }}>
+          Confirm Deletion
+        </DialogTitle>
         <DialogContent>
-          <DialogContentText sx={{ mb: 1 }}>
+          <DialogContentText sx={{ mb: 1.5 }}>
             Are you sure you want to delete this added money record?
           </DialogContentText>
           {deleteRecord && (
-            <Box sx={{ mt: 1, p: 1.5, bgcolor: 'action.hover', borderRadius: 1 }}>
-              <Typography variant="body2"><strong>User:</strong> {deleteRecord.user_name} ({deleteRecord.user_mobile})</Typography>
-              <Typography variant="body2"><strong>Amount:</strong> ₹{deleteRecord.amount}</Typography>
+            <Box sx={{ mt: 1, p: 2, bgcolor: 'action.hover', borderRadius: 1.5 }}>
+              <Typography variant="body2">
+                <strong>User:</strong> {deleteRecord.user_name} ({deleteRecord.user_mobile})
+              </Typography>
+              <Typography variant="body2" sx={{ mt: 0.5 }}>
+                <strong>Amount:</strong> ₹{deleteRecord.amount}
+              </Typography>
               <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
                 * Note: Record will be soft-deleted. The amount can ONLY be deleted if the user has not yet spent or used it.
               </Typography>
             </Box>
           )}
         </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setIsDialogOpen(false)} color="inherit" disabled={isDeleting}>
+        <DialogActions
+          sx={{
+            p: { xs: 2, sm: 2.5 },
+            flexDirection: { xs: 'column-reverse', sm: 'row' },
+            gap: 1,
+          }}
+        >
+          <Button
+            onClick={() => setIsDialogOpen(false)}
+            color="inherit"
+            disabled={isDeleting}
+            fullWidth
+            sx={{ m: 0 }}
+          >
             Cancel
           </Button>
           <Button
@@ -695,6 +1118,8 @@ const AddMoney: React.FC = () => {
             color="error"
             variant="contained"
             disabled={isDeleting}
+            fullWidth
+            sx={{ m: 0 }}
             startIcon={isDeleting ? <CircularProgress size={16} color="inherit" /> : null}
           >
             {isDeleting ? 'Deleting...' : 'Confirm Delete'}
@@ -703,30 +1128,66 @@ const AddMoney: React.FC = () => {
       </Dialog>
 
       {/* View/Process Request Modal */}
-      <Dialog open={isRequestModalOpen} onClose={() => setIsRequestModalOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Process Payment Request</DialogTitle>
-        <DialogContent>
+      <Dialog
+        open={isRequestModalOpen}
+        onClose={() => setIsRequestModalOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ sx: { m: { xs: 1.5, sm: 3 }, borderRadius: 2 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 700, pb: 1 }}>
+          Process Payment Request
+        </DialogTitle>
+        <DialogContent dividers>
           {selectedRequest && (
-            <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <Typography variant="body1"><strong>User:</strong> {selectedRequest.user?.name} ({selectedRequest.user?.mobile})</Typography>
-              <Typography variant="body1"><strong>Requested Amount:</strong> ₹{selectedRequest.amount}</Typography>
-              <Typography variant="body1"><strong>Date:</strong> {new Date(selectedRequest.created_at || selectedRequest.transaction_date).toLocaleString()}</Typography>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Box sx={{ bgcolor: 'action.hover', p: 2, borderRadius: 2 }}>
+                <Typography variant="body2" sx={{ mb: 0.5 }}>
+                  <strong>User:</strong> {selectedRequest.user?.name} ({selectedRequest.user?.mobile})
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 0.5 }}>
+                  <strong>Requested Amount:</strong> ₹{selectedRequest.amount}
+                </Typography>
+                <Typography variant="body2">
+                  <strong>Date:</strong> {new Date(selectedRequest.created_at || selectedRequest.transaction_date).toLocaleString()}
+                </Typography>
+              </Box>
 
               {selectedRequest.image && (
-                <Box sx={{ mt: 2, textAlign: 'center' }}>
-                  <Typography variant="body2" gutterBottom><strong>Payment Receipt:</strong></Typography>
+                <Box sx={{ textAlign: 'center' }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
+                    Payment Receipt / Screenshot:
+                  </Typography>
                   <img
                     src={`https://liveapi.sattalives.com/public/uploads/${selectedRequest.image}`}
                     alt="Receipt"
-                    style={{ maxWidth: '100%', maxHeight: '400px', objectFit: 'contain', border: '1px solid #ccc', borderRadius: 8 }}
+                    style={{
+                      maxWidth: '100%',
+                      maxHeight: '380px',
+                      objectFit: 'contain',
+                      border: '1px solid #ccc',
+                      borderRadius: 8,
+                    }}
                   />
                 </Box>
               )}
             </Box>
           )}
         </DialogContent>
-        <DialogActions sx={{ p: 3 }}>
-          <Button onClick={() => setIsRequestModalOpen(false)} color="inherit" variant="outlined">
+        <DialogActions
+          sx={{
+            p: { xs: 2, sm: 2.5 },
+            flexDirection: { xs: 'column-reverse', sm: 'row' },
+            gap: 1,
+          }}
+        >
+          <Button
+            onClick={() => setIsRequestModalOpen(false)}
+            color="inherit"
+            variant="outlined"
+            fullWidth
+            sx={{ m: 0 }}
+          >
             Cancel
           </Button>
           <Button
@@ -735,6 +1196,8 @@ const AddMoney: React.FC = () => {
             }}
             color="error"
             variant="contained"
+            fullWidth
+            sx={{ m: 0 }}
           >
             Reject Request
           </Button>
@@ -744,6 +1207,8 @@ const AddMoney: React.FC = () => {
             }}
             color="success"
             variant="contained"
+            fullWidth
+            sx={{ m: 0 }}
           >
             Approve & Add Money
           </Button>
